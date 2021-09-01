@@ -1,0 +1,43 @@
+
+store_paneling:
+
+  paths: 
+    root_dir: 'D:/McDonald/refactoring/Store Panelling/Russia'  
+    store_pmix_path:  '{ROOT_DIR}/input/Store_files'
+    store_gc_path:  '{ROOT_DIR}/input/GC'
+    storesList: # if empty read all the stores data (List of global IDs)
+    storeinfo:
+    outpath: '{ROOT_DIR}/Outputs'
+  
+
+  inputs:
+    start_date: '2017-01-01'
+    end_date: '2019-01-01'
+
+
+  features:
+    # PMIX features
+    num_years_for_sales_avg: 1
+    num_years_for_units_avg: 1
+    num_years_for_GC_avg: 1
+    num_years_for_AC_avg: 1
+    num_years_for_UPT_avg: 1
+    num_years_for_WAP: 3
+    num_years_for_PC_count: 3
+
+    # List of features from store_info file (single column excel/csv -- col_name: Features)
+    store_info_features: 
+
+
+
+  col_names:
+    baseprice: 'FINAL_BASE_PRICE'
+    days_open: 'DAYS_OPEN_THIS_WEEK'
+    gc: 'TOTALGUESTCOUNT'
+    item_id: 'SLD_MENU_ITM_ID'
+    sales: 'ALACARTE_SALES'
+    store_id: 'MCD_GBAL_LCAT_ID_NU'
+    unit_sales: 'ALACARTE_UNITS'
+    week_id: 'WK_END_DT'
+
+
