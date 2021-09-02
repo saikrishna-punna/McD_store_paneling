@@ -32,11 +32,11 @@ def load_flat_file(filepath, format_cols=True, encoding='utf-8',**kwargs):
         Data frame with formated column names
     """
     if filepath.endswith('.csv'):
-        df = pd.read_csv(filepath,encoding=encoding, **kwargs)
+        df = pd.read_csv(filepath,encoding="ISO-8859-1", **kwargs)
     if filepath.endswith('.xlsx'):
         df = pd.read_excel(filepath, **kwargs)
     if filepath.endswith('.sas7bdat'):
-        df = pd.read_sas(filepath,encoding=encoding,format='sas7bdat',**kwargs)
+        df = pd.read_sas(filepath,encoding="ISO-8859-1",format='sas7bdat',**kwargs)
     
     if format_cols:
         df.columns = clean_col_names(df.columns,remove_chars_in_braces=False)

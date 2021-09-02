@@ -18,7 +18,7 @@ class clustering:
 
         self.baseprice = self.config['store_paneling']['col_names']['baseprice']
         self.days_open = self.config['store_paneling']['col_names']['days_open']
-        self.gc = self.config['store_paneling']['col_names']['gc']
+        self.guestcount = self.config['store_paneling']['col_names']['gc']
         self.item_id = self.config['store_paneling']['col_names']['item_id']
         self.sales = self.config['store_paneling']['col_names']['sales']
         self.store_id = self.config['store_paneling']['col_names']['store_id']
@@ -29,23 +29,30 @@ class clustering:
         self.end_date = pd.to_datetime(self.config['store_paneling']['inputs']['end_date'])
 
         self.stores_list = os.listdir(self.pmix_path)
-        if self.config['paths']['storeList']:
-            stores = ut.load_flat_file(self.config['paths']['storeList']).values
+        if self.config['store_paneling']['paths']['storesList']:
+            stores = ut.load_flat_file(self.config['store_paneling']['paths']['storesList']).values
             self.stores_list = [file_ for file_ in self.stores_list if any([store in file_ for store in stores])]
-
+               
+        self.stores_list_gc = os.listdir(self.gc_path)
+        if self.config['store_paneling']['paths']['storesList']:
+            stores = ut.load_flat_file(self.config['store_paneling']['paths']['storesList']).values
+            self.stores_list_gc = [file_ for file_ in self.stores_list_gc if any([store in file_ for store in stores])]
         self.read_data()
 
 
 
     def read_data(self):
 
-        self.pmix = pd.concat([ut.load_flat_file(os.path.join(self.pmix_path, file_)) for file_ in self.store_files_list])
-        self.gc = pd.concat([ut.load_flat_file(os.path.join(self.gc_path, file_)) for file_ in self.store_files_list])
 
+        self.pmix = pd.concat([ut.load_flat_file(os.path.join(self.pmix_path, file_)) for file_ in self.stores_list])
+        self.gc = pd.concat([ut.load_flat_file(os.path.join(self.gc_path, file_)) for file_ in self.stores_list_gc])
+
+        self.pmix[self.week_id]=pd.to_datetime(self.pmix[self.week_id])
+        self.gc[self.week_id]=pd.to_datetime(self.gc[self.week_id])
         self.pmix = self.pmix[(self.pmix[self.week_id]>=self.start_date) & (self.pmix[self.week_id]<=self.end_date)]
         self.gc = self.gc[(self.gc[self.week_id]>=self.start_date) & (self.gc[self.week_id]<=self.end_date)]
 
-        stores_final = list(set(self.pmix[self.store_id].nunique())-set(self.gc[self.store_id].nunique()))
+        stores_final = list(set(self.pmix[self.store_id].unique())-set(self.gc[self.store_id].unique()))
 
         print("num of stores in pmix: ", self.pmix[self.store_id].nunique())
         print("num of stores in gc: ", self.gc[self.store_id].nunique())
@@ -59,7 +66,7 @@ class clustering:
             self.sales: np.sum,
         }
         self.pmix_for_elasticities = self.pmix.pivot_table(index=[self.store_id, self.week_id], values=list(agg.keys()), aggfunc=agg).reset_index()
-        self.gc_for_elasticites = self.gc[[self.store_id, self.week_id, self.gc]].copy()
+        self.gc_for_elasticites = self.gc[[self.store_id, self.week_id, self.guestcount]].copy()
 
         
 
@@ -76,6 +83,6 @@ class clustering:
     #             df = pmix_df.groupby()
         
 
-        
+
 
 
