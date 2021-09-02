@@ -101,4 +101,12 @@ def create_out_dir(filepath):
     os.makedirs(filepath, exist_ok=True)
 
 
+def storeinfogenerate(storeinfo):
+    storeinfodf=pd.read_excel(storeinfo, header=0,sheet_name='Sheet1',index_col=False)
+    storeinfodf=storeinfodf[['Store Type','Region','Licensee Type','Pricing Region','Number of Cash Desks','Store Square','Dining Room Square','Summer Place Square','Number of Seats','Number of Seats at Summer Place','Number of Grills','Closing Date','Longitude','Latitude','City']]
+    storeinfolist=list(storeinfodf.columns)
+    df = pd.DataFrame(storeinfolist, columns = ['Features'])
+    return df
+
+
 
