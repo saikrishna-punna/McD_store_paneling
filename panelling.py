@@ -38,8 +38,8 @@ class clustering:
             stores = ut.load_flat_file(self.config['store_paneling']['paths']['storesList']).values
             self.stores_list_gc = [file_ for file_ in self.stores_list_gc if any([store in file_ for store in stores])]
         self.read_data()
-
-
+        self.storeinfofeaturesdf=ut.storeinfogenerate(self.config['store_paneling']['paths']['storeinfo'])
+        self.storeinfofeaturesdf.to_excel(os.path.join(self.config['store_paneling']['features']['store_info_features'],'Storeinfoprocessed.xlsx'),index=False)
 
     def read_data(self):
 
@@ -83,6 +83,5 @@ class clustering:
     #             df = pmix_df.groupby()
         
 
-
-
+obj=clustering()
 

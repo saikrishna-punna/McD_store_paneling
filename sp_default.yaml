@@ -2,7 +2,7 @@
 store_paneling:
 
   paths: 
-    root_dir: 'D:/McDonald/refactoring/Store Panelling/Russia'  
+    ROOT_DIR: '/mnt/c/users/asishkumar.mundh/Videos/McD_store_paneling/'  
     store_pmix_path:  '{ROOT_DIR}/input/Store_files'
     store_gc_path:  '{ROOT_DIR}/input/GC'
     storesList: # if empty read all the stores data (List of global IDs)
@@ -26,7 +26,7 @@ store_paneling:
     num_years_for_PC_count: 3
 
     # List of features from store_info file (single column excel/csv -- col_name: Features)
-    store_info_features: 
+    store_info_features: '{ROOT_DIR}/input'
 
 
 
