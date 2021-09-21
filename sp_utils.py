@@ -2,14 +2,22 @@ import pandas as pd
 import numpy as np
 import os
 import zipfile
-
+from himl import ConfigProcessor
 import yaml
 from sklearn.model_selection import train_test_split
 
 
 def yaml_to_dict(config_file):
-    with open(config_file, 'r') as c:
-        return yaml.load(c, Loader=yaml.FullLoader)
+    with open(config_file, 'r') as fp:
+        cfg = yaml.load(fp, Loader=yaml.FullLoader)
+    for key_ in cfg:
+        try:
+            key_, value_ = key_, cfg[key_].format(**cfg)
+            cfg[key_] = value_
+        except Exception as e:
+            type(e)  # to avoid flake8 error
+            key_, value_ = key_, cfg[key_]
+    return (cfg)
 
 
 def load_flat_file(filepath, format_cols=True, encoding='utf-8',**kwargs):

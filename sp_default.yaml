@@ -2,17 +2,24 @@
 store_paneling:
 
   paths: 
-    root_dir: 'D:/McDonald/refactoring/Store Panelling/Russia'  
-    store_pmix_path:  '{ROOT_DIR}/input/Store_files'
-    store_gc_path:  '{ROOT_DIR}/input/GC'
+    root_dir: 'D:/McDonald/refactoring/StorePanelling/Russia'  
+    store_pmix_path:  '{root_dir}/input/Store_files'
+    store_gc_path:  '{root_dir}/input/GC'
     storesList: # if empty read all the stores data (List of global IDs)
     storeinfo:
-    outpath: '{ROOT_DIR}/Outputs'
+    outpath: '{root_dir}/Outputs'
   
 
   inputs:
     start_date: '2017-01-01'
     end_date: '2019-01-01'
+
+    use_elasticity_as_feature: True
+
+  elastcity_model:
+    random_effects: ['intercept', 'WAP']    # remaining features are assumed as fixed effects
+    group_col: 'MCD_GBAL_LCAT_ID_NU'
+    num_test_weeks: 20
 
 
   features:
@@ -22,8 +29,11 @@ store_paneling:
     num_years_for_GC_avg: 1
     num_years_for_AC_avg: 1
     num_years_for_UPT_avg: 1
-    num_years_for_WAP: 3
     num_years_for_PC_count: 3
+    num_years_for_WAP: 3
+
+    # Number of weeks considered for calculating rolling WAP
+    rolling_WAP_window: 24
 
     # List of features from store_info file (single column excel/csv -- col_name: Features)
     store_info_features: 
