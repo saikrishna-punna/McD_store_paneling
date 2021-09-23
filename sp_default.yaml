@@ -6,7 +6,7 @@ store_paneling:
     store_pmix_path:  '{root_dir}/input/Store_files'
     store_gc_path:  '{root_dir}/input/GC'
     storesList: # if empty read all the stores data (List of global IDs)
-    storeinfo:
+    storeinfo: '{root_dir}/input/Store_info_russia_.xlsx'
     outpath: '{root_dir}/Outputs'
   
 
@@ -15,6 +15,9 @@ store_paneling:
     end_date: '2019-01-01'
 
     use_elasticity_as_feature: True
+    
+    run_gmm: True
+    run_rf: True
 
   elastcity_model:
     random_effects: ['intercept', 'WAP']    # remaining features are assumed as fixed effects
@@ -35,12 +38,13 @@ store_paneling:
     # Number of weeks considered for calculating rolling WAP
     rolling_WAP_window: 24
 
-    # List of features from store_info file (single column excel/csv -- col_name: Features)
-    store_info_features: 
+
+
 
 
 
   col_names:
+    ac: 'AC'
     baseprice: 'FINAL_BASE_PRICE'
     days_open: 'DAYS_OPEN_THIS_WEEK'
     gc: 'TOTALGUESTCOUNT'
@@ -48,6 +52,8 @@ store_paneling:
     sales: 'ALACARTE_SALES'
     store_id: 'MCD_GBAL_LCAT_ID_NU'
     unit_sales: 'ALACARTE_UNITS'
+    upt: 'UPT'
+    wap: 'WAP'
     week_id: 'WK_END_DT'
 
 

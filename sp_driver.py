@@ -8,5 +8,5 @@ from panelling import clustering
 
 
 inst = clustering()
-
-inst.pmix_path
+inst.process_data()
+print('')

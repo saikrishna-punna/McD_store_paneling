@@ -3,6 +3,7 @@ import numpy as np
 import os
 import sp_utils as ut
 
+
 def dummy_fe():
     path = r'D:\McDonald\refactoring\StorePanelling\Russia\input\sample_fe'
     files = os.listdir(path)
