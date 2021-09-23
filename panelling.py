@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split
 
 from models import Lme
 import sp_utils as ut
-
+pd.options.mode.chained_assignment = None  # default='warn'
 
 class clustering:
     

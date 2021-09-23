@@ -90,14 +90,14 @@ def clean_col_names(string_series, special_chars_to_keep="_", remove_chars_in_br
             # Keep only alphanumeric character and some special
             # characters(.,_-&)
             reg_str = "[^\\w"+"\\".join(list(special_chars_to_keep))+" ]"
-            string_series = string_series.str.replace(reg_str, '')
+            string_series = string_series.str.replace(reg_str, '', regex=True)
         if (strip):
             # Remove multiple spaces
             string_series = string_series.str.replace(r'\s+', ' ', regex=True)
             # Remove leading and trailing spaces
             string_series = string_series.str.strip()
         string_series = string_series.str.replace(' ', '_')
-        string_series = string_series.str.replace('_+', '_')
+        string_series = string_series.str.replace('_+', '_', regex=True)
         return(string_series)
     except AttributeError:
         print("Variable datatype is not string")
