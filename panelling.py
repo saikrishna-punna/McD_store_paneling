@@ -3,13 +3,18 @@ import numpy as np
 import os
 import yaml
 import traceback
-from FE import dummy_fe
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.model_selection import train_test_split
+from FE import dummy_fe, neighbour_store_count
+from sklearn.preprocessing import StandardScaler
+from matplotlib import pyplot as plt
+from sklearn.cluster import KMeans
 
-from models import Lme
+
+from models import Lme, gmm
 import sp_utils as ut
-pd.options.mode.chained_assignment = None  # default='warn'
+import warnings
+warnings.filterwarnings("ignore")
+
+# pd.options.mode.chained_assignment = None  # default='warn'
 
 class clustering:
     
@@ -31,7 +36,7 @@ class clustering:
         self.store_id = self.config['store_paneling']['col_names']['store_id']
         self.unit_sales = self.config['store_paneling']['col_names']['unit_sales']
         self.upt = self.config['store_paneling']['col_names']['upt']
-        self.wap = self.config['store_paneling']['col_names']['WAP']
+        self.wap = self.config['store_paneling']['col_names']['wap']
         self.week_id = self.config['store_paneling']['col_names']['week_id']
 
 
@@ -47,7 +52,6 @@ class clustering:
         if self.config['store_paneling']['paths']['storesList']:
             stores = ut.load_flat_file(self.config['store_paneling']['paths']['storesList']).values
             self.stores_list_gc = [file_ for file_ in self.stores_list_gc if any([store in file_ for store in stores])]
-
         
 
     def process_data(self):
@@ -60,7 +64,7 @@ class clustering:
             self.pmix = self.pmix[(self.pmix[self.week_id]>=self.start_date) & (self.pmix[self.week_id]<=self.end_date)]
             self.gc = self.gc[(self.gc[self.week_id]>=self.start_date) & (self.gc[self.week_id]<=self.end_date)]
 
-            stores_final = list(set(self.pmix[self.store_id].unique())-set(self.gc[self.store_id].unique()))
+            stores_final = list(set(self.pmix[self.store_id].unique()).intersection(set(self.gc[self.store_id].unique())))
 
             print("num of stores in pmix: ", self.pmix[self.store_id].nunique())
             print("num of stores in gc: ", self.gc[self.store_id].nunique())
@@ -79,17 +83,29 @@ class clustering:
             
             if self.config['store_paneling']['inputs']['run_gmm'] or self.config['store_paneling']['inputs']['run_rf']:
                 # import store info file and format required columns
-                storeinfo = ut.load_flat_file(self.store_info_path, sheet_name='storeinfo')
-                num_cols = ut.load_flat_file(self.store_info_path, sheet_name='Numeric columns to consider').values
-                cat_cols = ut.load_flat_file(self.store_info_path, sheet_name='NonNumeric columns to consider').values
-                storeinfo = storeinfo[[self.store_id]+[num_cols]+[cat_cols]]
-                storeinfo = storeinfo.set_index(self.store_id)
-                storeinfo[cat_cols] = storeinfo[cat_cols].astype(str)
-                storeinfo[num_cols] = pd.to_numeric(storeinfo[cat_cols], errors='coerce')
-                fe_for_gmm = storeinfo.copy()
-                # fe_for_gmm[''] = 
-     
+                num_cols = ut.load_flat_file(self.store_info_path, sheet_name='Numeric columns to consider')['COLUMNS_TO_CONSIDER']
+                num_cols = ut.clean_col_names(pd.Series(num_cols)).to_list()
+                cat_cols = ut.load_flat_file(self.store_info_path, sheet_name='NonNumeric columns to consider')['COLUMNS_TO_CONSIDER']
+                cat_cols = ut.clean_col_names(pd.Series(cat_cols)).to_list()
 
+                storeinfo = ut.load_flat_file(self.store_info_path, sheet_name='storeinfo')[[self.store_id]+num_cols+cat_cols]
+                storeinfo = storeinfo.set_index(self.store_id)
+                storeinfo[cat_cols] = ut.change_dtypes(storeinfo[cat_cols], 'string')
+                storeinfo[num_cols] = ut.change_dtypes(storeinfo[num_cols], 'numeric')
+                fe_for_gmm = storeinfo.reset_index().copy()
+                fe_for_gmm['NUM_STORES_IN_5KM'] = fe_for_gmm[self.store_id].map(neighbour_store_count(fe_for_gmm.set_index(self.store_id), 5))
+                fe_for_gmm.drop(columns=['LATITUDE', 'LONGITUDE'], inplace=True)
+
+                fe_for_gmm = fe_for_gmm[fe_for_gmm[self.store_id].isin(stores_final)]
+                fe_for_gmm[self.guestcount] = fe_for_gmm[self.store_id].map(self.aggregate_data_store_lvl('gc', 1))
+                fe_for_gmm[self.unit_sales] = fe_for_gmm[self.store_id].map(self.aggregate_data_store_lvl('units', 1))
+                fe_for_gmm[self.sales] = fe_for_gmm[self.store_id].map(self.aggregate_data_store_lvl('sales', 1))
+                fe_for_gmm[self.ac] = fe_for_gmm[self.store_id].map(self.aggregate_data_store_lvl('AC', 1))
+                fe_for_gmm[self.wap] = fe_for_gmm[self.store_id].map(self.aggregate_data_store_lvl('WAP', 1))
+                fe_for_gmm[self.upt] = fe_for_gmm[self.store_id].map(self.aggregate_data_store_lvl('UPT', 1))
+                
+                self.fe_for_gmm = fe_for_gmm.set_index(self.store_id)
+                print("Created Features for GMM")
         except:
             print(traceback.format_exc())
 
@@ -105,6 +121,11 @@ class clustering:
             "units" for demand elasticity and "gc" for GC elasticity, by default 'units'
         test_weeks : int, optional
             number of test weeks, by default 20
+        Returns
+        -------
+        Dict
+            Store level wap coefficients
+
         """
         try:
             # log transform price var
@@ -156,67 +177,101 @@ class clustering:
             print(traceback.format_exc())
     
 
-
     def aggregate_data_store_lvl(self, metric, num_years):
-        
-        start_year = self.pmix_df[self.week_id].dt.year.max() - num_years
-        self.pmix_df = self.pmix_df[self.pmix_df[self.week_id].dt.year>=start_year]
-        self.gc_df = self.gc_df[self.gc_df[self.week_id].dt.year>=start_year]
+        """aggregate_data_store_lvl 
 
-        gc_values = self.gc_df.groupby(self.store_id)[self.gc]
+        Aggregate (mean) the given metric in the given num_years
+
+        Parameters
+        ----------
+        metric : str
+            options: 'gc', 'sales', 'units', 'AC', 'UPT', 'WAP'
+        num_years : int
+            To filter the latest n number of years
+
+        Returns
+        -------
+        dict
+            store level metric value
+        """
+        pmix_df = self.pmix.copy()
+        gc_df = self.gc.copy()
+        start_year = pmix_df[self.week_id].dt.year.max() - num_years
+        pmix_df = pmix_df[pmix_df[self.week_id].dt.year>=start_year]
+        gc_df = gc_df[gc_df[self.week_id].dt.year>=start_year]
+
+        gc_values = gc_df.groupby(self.store_id)[self.guestcount].mean().reset_index()
         if metric == 'gc':
-            return gc_values
+            return dict(gc_values.values)
         else:
-            df = self.gc_df.groupby(self.store_id)[self.gc]
-            gc_weeks = self.gc_df.groupby(self.store_id)[self.week_id].unique().to_dict()
-            df = self.pmix_df.groupby([self.store_id])[self.sales, self.unit_sales].sum().reset_index()
+            df = gc_df.groupby(self.store_id)[self.guestcount].mean().reset_index()
+            gc_weeks = gc_df.groupby(self.store_id)[self.week_id].nunique().to_dict()
+            df = pmix_df.groupby([self.store_id])[self.sales, self.unit_sales].sum().reset_index()
             df['num_weeks'] = df[self.store_id].map(gc_weeks)
-            df[self.sales] = df[self.metric]/df['num_weeks']
+            df[self.sales] = df[self.sales]/df['num_weeks']
             df[self.unit_sales] = df[self.unit_sales]/df['num_weeks']
             df = df.merge(gc_values, on=self.store_id, how='left')
             if metric == 'sales':
-                return df[[self.store_id, self.sales]]
+                return dict(df[[self.store_id, self.sales]].values)
             if metric == 'units':
-                return df[[self.store_id, self.unit_sales]]
+                return dict(df[[self.store_id, self.unit_sales]].values)
             if metric == 'AC':
                 df[self.ac] = df[self.sales]/df[self.guestcount]
-                return df[[self.store_id, self.ac]]
+                return dict(df[[self.store_id, self.ac]].values)
             if metric == 'UPT':
-                df[self.ac] = df[self.unit_sales]/df[self.guestcount]
-                return df[[self.store_id, self.upt]]     
+                df[self.upt] = df[self.unit_sales]/df[self.guestcount]
+                return dict(df[[self.store_id, self.upt]].values)
             if metric == 'WAP':
-                df[self.ac] = df[self.sales]/df[self.unit_sales]
-                return df[[self.store_id, self.upt]]     
+                df[self.wap] = df[self.sales]/df[self.unit_sales]
+                return dict(df[[self.store_id, self.wap]].values)
 
         
+    def elbow(self, max_clusters):
+
+        X = pd.get_dummies(self.fe_for_gmm.dropna(axis=1))
+        wcss = []
+        for i in range(1,max_clusters):
+            kmean = KMeans(n_clusters=i,init="k-means++")
+            kmean.fit_predict(X)
+            wcss.append(kmean.inertia_)
+
+        plt.plot(range(1,max_clusters),wcss)
+        plt.title('Elbow Curve')
+        plt.xlabel("No of Clusters")
+        plt.ylabel("WCSS")
+        plt.show()
 
 
+    def get_clusters(self):
+        try:
+            num_clusters = [2]  # Get it from elbow function
 
+            data = pd.get_dummies(self.fe_for_gmm.dropna(axis=1))
 
-
-    # def rolling_wap(self, df, rolling_weeks):
-    #     df.sort_values(by=self.week_id, inplace=True)
-    #     itemPrices = df.pivot_table(index=[self.store_id, self.week_id], columns=self.item_id, values=self.baseprice)
-    #     itemUnits = df.pivot_table(index=[self.store_id, self.week_id], columns=self.item_id, values=self.unit_sales)[itemPrices.columns]
-    #     itemBaseSales = itemPrices.multiply(itemUnits)
-    #     itemBaseSalesRolling = itemBaseSales.shift(1).rolling(rolling_weeks, min_periods=1).sum()
-    #     itemUnitsRolling = itemUnits.shift(1).rolling(rolling_weeks, min_periods=1).sum()
-
-    #     numerator = itemPrices.multiply(itemUnitsRolling)
-    #     numerator = numerator.fillna(itemBaseSalesRolling)
-
-    #     wap = numerator.sum(axis=1).divide(itemUnitsRolling.sum(
-    #         axis=1)).reset_index().set_index([self.store_id, self.week_id])
-    #     wap = wap.dropna().reset_index()
-    #     wap.columns = [self.store_id, self.week_id]+['WAP']
-
-
-
-
+            # Scale featurs to convert to normal dist.
+            scaler = StandardScaler()
+            scaler.fit_transform(data)
+            self.final_dict = {}
+            for clusters in num_clusters:
+                gmm_args = {}
+                gmm_args['num_clusters'] = clusters
+                gmm_args['covariance_type'] = 'full'
+                gmm_args['max_iter'] = 100
+                gmm_args['init_params'] = 'kmeans'
+                
+                GMM = gmm(data, gmm_args)
+                GMM.fit()
+                labels = GMM.predict()
+                gmm_summary = GMM.get_model_summary()
+                
+                cluster_dict = {}
+                cluster_dict['Summary'] = gmm_summary
+                cluster_dict['Labels'] = labels
+                
+                self.final_dict[clusters] = cluster_dict
         
-
-inst = clustering()
-inst.process_data()
-print('')
-
+            for clusters in num_clusters:
+                print(self.final_dict[clusters]['Summary'])
+        except:
+            print(traceback.format_exc())
 

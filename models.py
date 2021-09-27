@@ -4,6 +4,9 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 import traceback
 
+from sklearn.mixture import GaussianMixture # for GMM clustering
+from sklearn import metrics # for calculating Silhouette score
+
 class Lme():
     """
     Lme serves as an api for linear mixed effects modeling (internally uses statsmodels mixedlm)
@@ -134,6 +137,7 @@ class Lme():
         except:
             print(traceback.format_exc())
     
+    
     def predict(self, test_data=pd.DataFrame()):
         """
         predict used trained LME parameters from astats models model to generate predictions on the given dataset
@@ -180,4 +184,42 @@ class Lme():
         except:
             print(traceback.format_exc())
 
-# class gmm():
+class gmm():
+
+    def __init__(self, train_data, gmm_args):
+        try:
+            self.train_data = train_data
+            self.n_components = gmm_args['num_clusters']
+            self.covariance_type = gmm_args['covariance_type']
+            self.max_iter = gmm_args['max_iter']
+            self.init_params = gmm_args['init_params']
+
+            self.model = GaussianMixture(n_components = self.n_components, # this is the number of clusters
+                                        covariance_type = self.covariance_type, # {‘full’, ‘tied’, ‘diag’, ‘spherical’}, default=’full’
+                                        max_iter = self.max_iter, # the number of EM iterations to perform. default=100
+                                        n_init = 1, # the number of initializations to perform. default = 1
+                                        init_params = 'kmeans', # the method used to initialize the weights, the means and the precisions. {'random' or default='k-means'}
+                                        verbose = 0, # default 0, {0,1,2}
+                                        random_state = 0 # for reproducibility
+                                        )
+        except:
+            print(traceback.format_exc())
+
+    def fit(self):
+        self.clus = self.model.fit(self.train_data)
+    
+    def predict(self):
+        return self.model.predict(self.train_data)
+
+    def get_model_summary(self):
+
+        out = {}
+        out['Weights']= self.clus.weights_
+        out['Means']= self.clus.means_
+        out['Covariances']= self.clus.covariances_
+        out['Precisions']= self.clus.precisions_
+        out['Precisions Cholesky']= self.clus.precisions_cholesky_
+        out['Converged']= self.clus.converged_
+        out['No. of Iterations']= self.clus.n_iter_
+        out['Lower Bound']= self.clus.lower_bound_
+        return out

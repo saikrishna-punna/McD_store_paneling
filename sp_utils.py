@@ -20,7 +20,7 @@ def yaml_to_dict(config_file):
     return (cfg)
 
 
-def load_flat_file(filepath, format_cols=True, encoding='utf-8',**kwargs):
+def load_flat_file(filepath, format_cols=True, column_filter=None, encoding='utf-8',**kwargs):
     """
 
     To read the flat files
@@ -31,6 +31,8 @@ def load_flat_file(filepath, format_cols=True, encoding='utf-8',**kwargs):
         input file path
     format_cols : bool, optional
         True for modifying the column names, by default True
+    column_filter : list, optional
+        List of column names to filter
     encoding : str, optional
         by default 'utf-8'
 
@@ -46,6 +48,9 @@ def load_flat_file(filepath, format_cols=True, encoding='utf-8',**kwargs):
     if filepath.endswith('.sas7bdat'):
         df = pd.read_sas(filepath,encoding=encoding,format='sas7bdat',**kwargs)
     
+    if column_filter is not None:
+        df = df[column_filter]
+
     if format_cols:
         df.columns = clean_col_names(df.columns,remove_chars_in_braces=False)
     return df
@@ -109,4 +114,13 @@ def create_out_dir(filepath):
     os.makedirs(filepath, exist_ok=True)
 
 
-
+def change_dtypes(df, type = 'string'):
+    cols = df.columns
+    if type == 'string':
+        df[cols] = df[cols].astype(str)
+        for col in cols:
+            df[col] = np.where(df[col]=='nan', np.nan, df[col])
+    if type == 'numeric':
+        for col in cols:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+    return df

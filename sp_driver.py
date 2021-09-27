@@ -7,6 +7,10 @@ from panelling import clustering
 
 
 
-inst = clustering()
-inst.process_data()
-print('')
+obj = clustering()
+obj.process_data()
+
+obj.elbow(4)
+obj.get_clusters()
+
+print('END')
